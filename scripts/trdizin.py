@@ -78,6 +78,8 @@ def _build_parser():
     adv.add_argument("--page", type=int, default=1)
     adv.add_argument("--limit", type=int, default=20)
     adv.add_argument("--no-references", action="store_true")
+    pdfp = sub.add_parser("pdf")
+    pdfp.add_argument("--uuid", required=True)
     return p
 
 
@@ -114,9 +116,67 @@ def enrich_author_citations(result, _opener=None):
     return result
 
 
+import os
+import tempfile
+
+
+def resolve_pdf_url(pdf_uuid, _opener=None):
+    """Step 1: getFile returns a JSON string = a signed download URL."""
+    url = "%s/getFile/%s?showViewer=false" % (core.BASE, pdf_uuid)
+    signed = http_get_json(url, _opener=_opener)
+    if not isinstance(signed, str) or not signed.startswith("http"):
+        raise RuntimeError("unexpected getFile response for %s" % pdf_uuid)
+    return signed
+
+
+def _default_pdf_fetch(url):
+    req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.read()
+
+
+def _default_convert(path):
+    from markitdown import MarkItDown
+    return MarkItDown().convert(path).text_content
+
+
+def pdf_to_text(pdf_uuid, _resolve=None, _fetch=None, _convert=None):
+    """Resolve signed URL, download PDF, convert to markdown via markitdown.
+    Returns {schema_version, pdf_uuid, markdown} or {error}."""
+    resolve = _resolve or resolve_pdf_url
+    fetch = _fetch or _default_pdf_fetch
+    convert = _convert or _default_convert
+    try:
+        signed = resolve(pdf_uuid)
+        data = fetch(signed)
+    except Exception as e:
+        return {"error": "failed to download PDF: %s" % e}
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    try:
+        tmp.write(data)
+        tmp.close()
+        markdown = convert(tmp.name)
+    except ImportError:
+        return {"error": "markitdown is required for PDF extraction. "
+                         "Install with: pip install 'markitdown[pdf]'"}
+    except Exception as e:
+        return {"error": "PDF conversion failed: %s" % e}
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+    return {"schema_version": core.SCHEMA_VERSION, "pdf_uuid": pdf_uuid,
+            "markdown": markdown}
+
+
 def run(argv, _opener=None):
     args = _build_parser().parse_args(argv)
     try:
+        if args.cmd == "pdf":
+            result = pdf_to_text(args.uuid)
+            print(json.dumps(result, ensure_ascii=False))
+            return 1 if "error" in result else 0
         if args.cmd == "advanced":
             criteria = json.loads(args.criteria)
             url = core.build_advanced_url(criteria, order=args.order,
