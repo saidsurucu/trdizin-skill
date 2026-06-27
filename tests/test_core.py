@@ -72,5 +72,79 @@ class TestBuildUrl(unittest.TestCase):
         self.assertEqual(sorted(qs["facet-publication_year"]), ["2023", "2024"])
 
 
+def _load(name):
+    with open(os.path.join(FX, name)) as f:
+        return json.load(f)
+
+
+class TestParseMeta(unittest.TestCase):
+    def setUp(self):
+        self.data = _load("publication_search.json")
+
+    def test_pagination_from_fixture(self):
+        pg = core.parse_pagination(self.data, page=1, limit=3)
+        self.assertIsInstance(pg["total"], int)
+        self.assertIn(pg["total_relation"], ("eq", "gte"))
+        self.assertEqual(pg["page"], 1)
+        self.assertEqual(pg["limit"], 3)
+
+    def test_pagination_handles_bare_int_total(self):
+        pg = core.parse_pagination({"hits": {"total": 42}}, page=2, limit=10)
+        self.assertEqual(pg["total"], 42)
+        self.assertEqual(pg["total_relation"], "eq")
+
+    def test_facets_stripped_and_counted(self):
+        facets = core.parse_facets(self.data)
+        self.assertIn("accessType", facets)
+        self.assertTrue(all("key" in b and "count" in b
+                            for b in facets["accessType"]))
+
+    def test_facets_absent_returns_empty(self):
+        self.assertEqual(core.parse_facets({"hits": {}}), {})
+
+
+class TestNormalize(unittest.TestCase):
+    def setUp(self):
+        self.hit = _load("publication_search.json")["hits"]["hits"][0]
+
+    def test_publication_core_keys(self):
+        rec = core.normalize_record(self.hit, "publication")
+        for k in ("id", "baslik", "yazarlar", "yil", "erisim", "pdf_uuid"):
+            self.assertIn(k, rec)
+        self.assertIsInstance(rec["yazarlar"], list)
+
+    def test_no_author_named_keys(self):
+        rec = core.normalize_record(self.hit, "publication")
+        self.assertFalse([k for k in rec if "author" in k.lower()])
+
+    def test_references_toggle(self):
+        with_refs = core.normalize_record(self.hit, "publication", include_references=True)
+        without = core.normalize_record(self.hit, "publication", include_references=False)
+        self.assertIn("kaynakca", with_refs)
+        self.assertNotIn("kaynakca", without)
+
+    def test_missing_fields_tolerated(self):
+        rec = core.normalize_record({"_source": {}}, "publication")
+        self.assertEqual(rec["yazarlar"], [])
+        self.assertIsNone(rec["baslik"])
+
+    def test_other_entity_shape(self):
+        jhit = _load("journal_search.json")["hits"]["hits"][0]
+        rec = core.normalize_record(jhit, "journal")
+        self.assertIn("id", rec)
+        self.assertIn("ham", rec)
+
+
+class TestParseResponse(unittest.TestCase):
+    def test_envelope(self):
+        data = _load("publication_search.json")
+        out = core.parse_response(data, "publication", page=1, limit=3)
+        self.assertEqual(out["schema_version"], core.SCHEMA_VERSION)
+        self.assertIn("pagination", out)
+        self.assertIn("facets", out)
+        self.assertIsInstance(out["results"], list)
+        self.assertTrue(len(out["results"]) >= 1)
+
+
 if __name__ == "__main__":
     unittest.main()

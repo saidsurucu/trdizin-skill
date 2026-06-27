@@ -79,3 +79,99 @@ def build_url(entity, q="", order=None, page=1, limit=20, filters=None):
     params.append(("limit", str(int(limit))))
     params.extend(_filter_params(filters))
     return "%s/defaultSearch/%s/?%s" % (BASE, entity, urlencode(params))
+
+
+def parse_pagination(data, page, limit):
+    total_raw = (data.get("hits", {}) or {}).get("total", 0)
+    if isinstance(total_raw, dict):
+        total = int(total_raw.get("value", 0))
+        relation = total_raw.get("relation", "eq")
+    else:
+        total = int(total_raw or 0)
+        relation = "eq"
+    return {"total": total, "total_relation": relation,
+            "page": int(page), "limit": int(limit)}
+
+
+def parse_facets(data):
+    aggs = data.get("aggregations") or {}
+    out = {}
+    for raw_key, agg in aggs.items():
+        name = raw_key[len("facet-"):] if raw_key.startswith("facet-") else raw_key
+        container = agg.get("values", agg) if isinstance(agg, dict) else {}
+        buckets = container.get("buckets", []) if isinstance(container, dict) else []
+        out[name] = [{"key": b.get("key"), "count": b.get("doc_count", 0)}
+                     for b in buckets]
+    return out
+
+
+def _author_names(src):
+    names = []
+    for a in src.get("authors") or []:
+        if isinstance(a, dict):
+            name = a.get("name") or a.get("fullName") or a.get("displayName")
+        else:
+            name = a
+        if name:
+            names.append(name)
+    seen, out = set(), []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
+def _first_abstract(src):
+    abstracts = src.get("abstracts") or []
+    return abstracts[0] if abstracts and isinstance(abstracts[0], dict) else {}
+
+
+def _pages(src):
+    s, e = src.get("startPage"), src.get("endPage")
+    if s and e:
+        return "%s-%s" % (s, e)
+    return s or e or None
+
+
+def normalize_record(hit, entity, include_references=True):
+    src = hit.get("_source", {}) or {}
+    if entity != "publication":
+        return {
+            "id": src.get("id") or hit.get("_id"),
+            "baslik": src.get("name") or src.get("title") or src.get("orderTitle"),
+            "ham": {k: v for k, v in src.items()
+                    if isinstance(v, (str, int, float, bool))},
+        }
+    ab = _first_abstract(src)
+    rec = {
+        "id": src.get("id") or hit.get("_id"),
+        "baslik": ab.get("title") or src.get("orderTitle"),
+        "yazarlar": _author_names(src),
+        "dergi": src.get("journal"),
+        "yil": src.get("publicationYear"),
+        "doi": src.get("doi"),
+        "erisim": src.get("accessType"),
+        "sayfa": _pages(src),
+        "atif_sayisi": src.get("orderCitationCount"),
+        "goruntulenme": src.get("viewCount"),
+        "indirme": src.get("downloadCount"),
+        "anahtar_kelimeler": ab.get("keywords") or [],
+        "oz": ab.get("abstract"),
+        "konular": src.get("subjects") or [],
+        "pdf_uuid": src.get("pdf"),
+        "veritabanlari": src.get("databases") or src.get("indexedBy") or [],
+    }
+    if include_references:
+        rec["kaynakca"] = src.get("references") or []
+    return rec
+
+
+def parse_response(data, entity, page, limit, include_references=True):
+    hits = (data.get("hits", {}) or {}).get("hits", []) or []
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "pagination": parse_pagination(data, page, limit),
+        "facets": parse_facets(data),
+        "results": [normalize_record(h, entity, include_references) for h in hits],
+    }
