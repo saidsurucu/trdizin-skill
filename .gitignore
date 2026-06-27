@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
+
+# internal planning/spec docs (kept local, not tracked)
+docs/
