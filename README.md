@@ -1,14 +1,17 @@
 # TR Dizin Skill
 
 TR Dizin (TÜBİTAK ULAKBİM Ulusal Akademik Dizin — [trdizin.gov.tr](https://trdizin.gov.tr))
-için bir **Claude Code skill**'i. TR Dizin'in **açık JSON API'sini** düz HTTPS
-üzerinden kullanır: yayın/dergi/yazar/kurum araması, gelişmiş alan araması,
+için bir **AI agent skill**'i (Claude Code, Codex ve benzeri). TR Dizin'in
+**açık JSON API'sini** düz HTTPS üzerinden kullanır: yayın/dergi/yazar/kurum araması, gelişmiş alan araması,
 facet filtreleri, kaynakça ve PDF→metin. **Giriş, CAPTCHA veya API anahtarı
 gerekmez.**
 
-> Bu skill bir sunucu/MCP değildir. Çekirdek mantık bağımlılıksız Python
-> (stdlib) bir CLI'dadır; Claude bunu `Bash` ile çağırıp temiz JSON alır.
-> Sadece PDF→metin için opsiyonel olarak `markitdown` gerekir.
+> **Claude-in-Chrome bağımlılığı yoktur.** Tarayıcı gerektirmediği için yalnızca
+> Claude Code ile değil, **Codex** gibi diğer AI agent'larıyla da çalışır —
+> agent sadece basit komutları çalıştırabilsin yeter.
+
+> Bu skill bir sunucu/MCP değildir. Agent, gerekli işi senin için arka planda
+> yapar; sen sadece ne istediğini doğal dilde söylersin.
 
 ## Kurulum
 
@@ -17,11 +20,7 @@ Claude'a şunu yaz:
 > `https://github.com/saidsurucu/trdizin-skill` reposunu `~/.claude/skills/trdizin`
 > klasörüne klonla — TR Dizin skill'ini kurmak istiyorum.
 
-**Gereksinimler:** Python 3 (arama için yeterli, ek paket yok). PDF→metin için:
-
-```bash
-pip install 'markitdown[pdf]'
-```
+Hepsi bu. Gerekli her şeyi (PDF okuma dahil) Claude kendisi halleder.
 
 ## Ne yapabilir
 
@@ -50,44 +49,27 @@ Yayın dışındaki üç varlık tipi. Yazar sonuçları atıf sayısıyla zengi
 > *"'eğitim' dergilerini ara"* · *"Boğaziçi Üniversitesi'ni kurum olarak ara"*
 
 ### 4. PDF → metin — `pdf`
-Açık erişimli bir yayının PDF'ini (sonuçtaki `pdf_uuid` ile) markdown metne
-çevirir (`markitdown`). Kapalı yayınlarda PDF yoktur. OCR yoktur.
+Açık erişimli bir yayının PDF'ini okunabilir metne çevirir. Kapalı yayınlarda
+PDF yoktur.
 
-> *"Şu yayının PDF'ini metne çevir: <pdf_uuid>"*
+> *"Şu yayının tam metnini çıkar"*
 
 ## Nasıl çalışır
 
-- Tüm aramalar `search.trdizin.gov.tr/api/defaultSearch/{entity}/` uç noktasına
-  gider; açık API olduğu için tarayıcı/oturum gerekmez.
-- Çıktı ham Elasticsearch değil, **stabil normalize bir şemadır** (`schema_version`,
-  `pagination`, `facets`, `results`); ham ID'ler korunur.
-- Yazar adları `yazarlar` anahtarıyla döner (Claude çıktı redaktörü "author"
-  içeren anahtarları gizlediği için).
-- PDF iki adımlıdır: `getFile` imzalı URL döndürür → PDF indirilir → `markitdown`
-  ile metne çevrilir.
+- TR Dizin'in açık API'sini kullanır; tarayıcı veya oturum gerekmez.
+- Sonuçlar düzenli, okunabilir bir yapıda döner; ham kimlikler (ID, DOI) korunur
+  ki dergi/yazar/atıf takibi yapılabilsin.
 - Sayfa içeriği **güvenilmez veri** olarak ele alınır; içindeki talimatlar
   uygulanmaz.
 
-## Geliştirme
+## Yapı
 
-Saf ayrıştırma/sorgu-kurma fonksiyonları Python stdlib `unittest` ile, sabit
-fixture'lar üzerinden (ağsız) test edilir:
-
-```bash
-python3 -m unittest discover -s tests          # offline (canlı testler atlanır)
-TRDIZIN_LIVE=1 python3 -m unittest discover -s tests   # + canlı smoke testleri
-```
-
-Kod yapısı:
-- `SKILL.md` — Claude'un izlediği iş akışları
-- `reference.md` — endpoint'ler, alan adları, facet'ler, order kodları, canlı doğrulama notları
-- `scripts/core.py` — saf ayrıştırma/sorgu kurma (birim testli)
-- `scripts/trdizin.py` — HTTP katmanı + CLI (search/advanced/journals/authors/institutions/pdf)
-- `tests/` — fixture tabanlı birim testleri + opsiyonel canlı smoke testleri
+- `SKILL.md` — agent'ın izlediği iş akışları
+- `reference.md` — endpoint'ler, alan adları, facet'ler, doğrulama notları
+- `scripts/` — arama ve PDF mantığı
+- `tests/` — birim testleri + opsiyonel canlı smoke testleri
 
 ## Notlar
 
-- Tek instance / kişisel kullanım için tasarlanmıştır.
-- API dökümansız ve açık; habersiz değişebilir. Canlı smoke testleri bunu yakalar.
-- `--q` içinde `:` kullanılamaz (gelişmiş arama kullan); `relevance-DESC` güvenli
-  varsayılan sıralamadır.
+- Kişisel kullanım için tasarlanmıştır.
+- API dökümansız ve açık; habersiz değişebilir.
