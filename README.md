@@ -15,12 +15,12 @@ gerekmez.**
 
 ## Kurulum
 
-Claude'a şunu yaz:
+Agent'a şunu yaz:
 
-> `https://github.com/saidsurucu/trdizin-skill` reposunu `~/.claude/skills/trdizin`
-> klasörüne klonla — TR Dizin skill'ini kurmak istiyorum.
+> `https://github.com/saidsurucu/trdizin-skill` — TR Dizin skill'ini kurmak istiyorum.
 
-Hepsi bu. Gerekli her şeyi (PDF okuma dahil) Claude kendisi halleder.
+Hepsi bu. Nereye kuracağını ve gerekli her şeyi (PDF okuma dahil) agent kendisi
+halleder.
 
 ## Ne yapabilir
 
