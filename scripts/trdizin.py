@@ -70,6 +70,14 @@ def _build_parser():
         if cmd == "search":
             sp.add_argument("--filter", action="append", default=[],
                             metavar="KEY=VALUE")
+    adv = sub.add_parser("advanced")
+    adv.add_argument("--criteria", required=True,
+                     metavar='JSON',
+                     help='JSON list of {"field","term","op"} objects')
+    adv.add_argument("--order", default="relevance-DESC")
+    adv.add_argument("--page", type=int, default=1)
+    adv.add_argument("--limit", type=int, default=20)
+    adv.add_argument("--no-references", action="store_true")
     return p
 
 
@@ -109,6 +117,17 @@ def enrich_author_citations(result, _opener=None):
 def run(argv, _opener=None):
     args = _build_parser().parse_args(argv)
     try:
+        if args.cmd == "advanced":
+            criteria = json.loads(args.criteria)
+            url = core.build_advanced_url(criteria, order=args.order,
+                                          page=args.page, limit=args.limit)
+            data = http_get_json(url, _opener=_opener)
+            result = core.parse_response(data, "publication", args.page,
+                                         args.limit,
+                                         include_references=not args.no_references)
+            result["url"] = url
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
         entity = _ENTITY[args.cmd]
         filters = _parse_filters(getattr(args, "filter", []))
         url = core.build_url(entity, q=args.q, order=args.order,

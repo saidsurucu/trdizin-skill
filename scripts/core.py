@@ -81,6 +81,58 @@ def build_url(entity, q="", order=None, page=1, limit=20, filters=None):
     return "%s/defaultSearch/%s/?%s" % (BASE, entity, urlencode(params))
 
 
+# Advanced-search field aliases (UI label key -> q field name), verified live.
+ADV_FIELDS = {
+    "title": "title", "abstract": "abstract", "year": "year",
+    "author": "author", "orcid": "orcid", "issn": "issn", "eissn": "eissn",
+    "journal": "journalName", "journalName": "journalName",
+    "doi": "publicationNumber", "publicationNumber": "publicationNumber",
+    "language": "language", "institution": "institution",
+}
+_ADV_OPS = ("AND", "OR", "NOT")
+
+
+def _norm_op(op):
+    s = str(op or "AND").strip().upper()
+    return s if s in _ADV_OPS else "AND"
+
+
+def build_advanced_query(criteria):
+    """Build the field-scoped q string.
+
+    criteria: list of {"field", "term", "op"} dicts. First op ignored; later
+    ops join with AND/OR/NOT. Produces a single outer-paren group:
+        (title : ( "yapay zeka" ) AND abstract : ( "egitim" ))
+    Raises QueryError if no usable criteria.
+    """
+    parts = []
+    for i, c in enumerate(criteria or []):
+        term = (c.get("term") or "").strip()
+        field = c.get("field")
+        if not term or not field:
+            continue
+        name = ADV_FIELDS.get(field, field)
+        # quote the term as a phrase; escape any embedded double quotes
+        safe = term.replace('"', '')
+        frag = '%s : ( "%s" )' % (name, safe)
+        if not parts:
+            parts.append(frag)
+        else:
+            parts.append("%s %s" % (_norm_op(c.get("op")), frag))
+    if not parts:
+        raise QueryError("advanced search needs at least one {field, term}")
+    return "(" + " ".join(parts) + ")"
+
+
+def build_advanced_url(criteria, order="relevance-DESC", page=1, limit=20):
+    """Advanced search URL. order+page are always sent (the colon-query
+    requires them, see reference.md)."""
+    q = build_advanced_query(criteria)
+    params = [("q", q), ("order", order or "relevance-DESC"),
+              ("page", str(int(page))), ("limit", str(int(limit)))]
+    return "%s/defaultSearch/publication/?%s" % (BASE, urlencode(params))
+
+
 def parse_pagination(data, page, limit):
     total_raw = (data.get("hits", {}) or {}).get("total", 0)
     if isinstance(total_raw, dict):

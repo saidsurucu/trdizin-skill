@@ -60,6 +60,24 @@ class TestCli(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class TestAdvancedCli(unittest.TestCase):
+    def test_advanced_outputs_envelope(self):
+        code, out = _run(
+            ["advanced", "--criteria",
+             json.dumps([{"field": "title", "term": "yapay zeka"}]),
+             "--limit", "3"],
+            "advanced_search.json")
+        self.assertEqual(code, 0)
+        data = json.loads(out)
+        self.assertEqual(data["schema_version"], 1)
+        self.assertTrue(len(data["results"]) >= 1)
+
+    def test_advanced_bad_json_errors(self):
+        code, out = _run(["advanced", "--criteria", "not-json"],
+                         "advanced_search.json")
+        self.assertEqual(code, 2)
+
+
 class TestAuthorEnrich(unittest.TestCase):
     def test_enrich_is_best_effort_on_failure(self):
         result = {"results": [{"id": 1}, {"id": 2}]}

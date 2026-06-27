@@ -146,5 +146,35 @@ class TestParseResponse(unittest.TestCase):
         self.assertTrue(len(out["results"]) >= 1)
 
 
+class TestAdvanced(unittest.TestCase):
+    def test_single_field(self):
+        q = core.build_advanced_query([{"field": "title", "term": "yapay zeka"}])
+        self.assertEqual(q, '(title : ( "yapay zeka" ))')
+
+    def test_field_alias_doi_and_journal(self):
+        q = core.build_advanced_query([{"field": "doi", "term": "10.1/x"}])
+        self.assertIn("publicationNumber", q)
+        q2 = core.build_advanced_query([{"field": "journal", "term": "Eğitim"}])
+        self.assertIn("journalName", q2)
+
+    def test_boolean_join_single_outer_paren(self):
+        q = core.build_advanced_query([
+            {"field": "title", "term": "a"},
+            {"field": "abstract", "term": "b", "op": "NOT"},
+        ])
+        self.assertEqual(q, '(title : ( "a" ) NOT abstract : ( "b" ))')
+
+    def test_empty_criteria_raises(self):
+        with self.assertRaises(core.QueryError):
+            core.build_advanced_query([])
+
+    def test_url_includes_order_and_page(self):
+        url = core.build_advanced_url([{"field": "title", "term": "x"}])
+        qs = parse_qs(urlparse(url).query)
+        self.assertIn("order", qs)
+        self.assertEqual(qs["page"], ["1"])
+        self.assertIn("/defaultSearch/publication/?", url)
+
+
 if __name__ == "__main__":
     unittest.main()
