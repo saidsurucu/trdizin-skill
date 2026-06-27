@@ -29,10 +29,14 @@ python3 scripts/trdizin.py pdf --uuid <pdf_uuid>
 ## Output schema
 
 Search/advanced commands return:
-`{schema_version, pagination:{total,total_relation,page,limit}, facets:{...}, results:[...], url}`.
+`{schema_version, pagination:{total,total_relation,page,limit,returned}, facets:{...}, results:[...], url}`.
+(`returned` = how many records actually came back; the API floors small `limit`
+values, so it can exceed `limit`.)
 Each publication result: `id, baslik, yazarlar (list), dergi, yil, doi, erisim
 (OPEN/CLOSED), sayfa, atif_sayisi, goruntulenme, indirme, anahtar_kelimeler,
-oz, konular, pdf_uuid, veritabanlari, kaynakca (references)`.
+oz, konular, pdf_uuid, veritabanlari, kaynakca (bibliography / outgoing refs),
+atif_yapan_yayinlar (incoming citations: id, yazarlar, yil, docType)`.
+`kaynakca` and `atif_yapan_yayinlar` are large; `--no-references` drops both.
 
 `facets` carries the per-bucket counts (e.g. `accessType: [{key:"OPEN",count:...}]`)
 so you can report distributions and pick filter values.

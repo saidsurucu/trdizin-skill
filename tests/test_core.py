@@ -102,6 +102,11 @@ class TestParseMeta(unittest.TestCase):
     def test_facets_absent_returns_empty(self):
         self.assertEqual(core.parse_facets({"hits": {}}), {})
 
+    def test_pagination_reports_returned_count(self):
+        pg = core.parse_pagination(self.data, page=1, limit=3)
+        n = len(self.data["hits"]["hits"])
+        self.assertEqual(pg["returned"], n)
+
 
 class TestNormalize(unittest.TestCase):
     def setUp(self):
@@ -122,6 +127,20 @@ class TestNormalize(unittest.TestCase):
         without = core.normalize_record(self.hit, "publication", include_references=False)
         self.assertIn("kaynakca", with_refs)
         self.assertNotIn("kaynakca", without)
+        self.assertIn("atif_yapan_yayinlar", with_refs)
+        self.assertNotIn("atif_yapan_yayinlar", without)
+
+    def test_cited_references_renamed_and_compact(self):
+        hit = {"_source": {"id": 1, "abstracts": [{"title": "T"}],
+                           "citedReferences": [
+                               {"id": 99, "year": "2003", "docType": "PAPER",
+                                "authors": [{"id": 5, "name": "Ali Veli"}]}]}}
+        rec = core.normalize_record(hit, "publication")
+        cited = rec["atif_yapan_yayinlar"]
+        self.assertEqual(cited[0]["yazarlar"], ["Ali Veli"])
+        self.assertEqual(cited[0]["yil"], "2003")
+        # no key containing "author" anywhere in a citing record
+        self.assertFalse([k for k in cited[0] if "author" in k.lower()])
 
     def test_missing_fields_tolerated(self):
         rec = core.normalize_record({"_source": {}}, "publication")

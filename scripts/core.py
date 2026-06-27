@@ -141,8 +141,11 @@ def parse_pagination(data, page, limit):
     else:
         total = int(total_raw or 0)
         relation = "eq"
+    # `limit` is the requested page size; the API has an effective floor (small
+    # limits still return ~10), so report how many were actually returned.
+    returned = len((data.get("hits", {}) or {}).get("hits", []) or [])
     return {"total": total, "total_relation": relation,
-            "page": int(page), "limit": int(limit)}
+            "page": int(page), "limit": int(limit), "returned": returned}
 
 
 def parse_facets(data):
@@ -177,6 +180,24 @@ def _author_names(src):
 def _first_abstract(src):
     abstracts = src.get("abstracts") or []
     return abstracts[0] if abstracts and isinstance(abstracts[0], dict) else {}
+
+
+def _norm_cited(cited):
+    """Compact the incoming-citation list (citedReferences). Renames each
+    citing record's `authors` -> `yazarlar` so the output redactor (which blanks
+    keys named like 'author') doesn't blank them."""
+    out = []
+    for c in cited or []:
+        if not isinstance(c, dict):
+            continue
+        out.append({
+            "id": c.get("id"),
+            "yazarlar": [a.get("name") for a in (c.get("authors") or [])
+                         if isinstance(a, dict) and a.get("name")],
+            "yil": c.get("year"),
+            "docType": c.get("docType"),
+        })
+    return out
 
 
 def _pages(src):
@@ -229,6 +250,7 @@ def normalize_record(hit, entity, include_references=True):
     }
     if include_references:
         rec["kaynakca"] = src.get("references") or []
+        rec["atif_yapan_yayinlar"] = _norm_cited(src.get("citedReferences"))
     return rec
 
 

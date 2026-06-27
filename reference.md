@@ -29,6 +29,12 @@ GET https://search.trdizin.gov.tr/api/defaultSearch/{entity}/?q=...&order=...&pa
 `pdf` (a UUID for OPEN records, `null` for CLOSED), `databases`/`indexedBy`,
 `subjects`, `docType`, `publicationType`, `projectGroup`.
 
+`references` is the bibliography (outgoing) as strings → surfaced as `kaynakca`.
+`citedReferences` is the **incoming** citation list (works that cite this; its
+length equals `orderCitationCount`); each item is an object with an `authors`
+sub-key → surfaced compactly as `atif_yapan_yayinlar` with `authors` renamed to
+`yazarlar` (so the output redactor doesn't blank it).
+
 ## order (sort) values
 
 `relevance-DESC`, `publicationYear-DESC`, `publicationYear-ASC`,
