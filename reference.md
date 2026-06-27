@@ -101,13 +101,16 @@ Field aliases (UI label → `q` field name):
 | Yayın Dili | `language`          |
 | Kurum      | `institution`       |
 
-## Author citation enrichment
+## Author citation count
 
-The author search UI follows up with:
-```
-GET /api/findAuthorCitationsByIdList/<comma-separated, double-quoted author ids>
-```
-e.g. `/api/findAuthorCitationsByIdList/"541496", "469221", ...` (URL-encoded).
+The author record's `_source` already carries the authoritative metrics:
+`orderCitationCount` (citation count), `orderPublicationCount` (publication
+count), and `hindex`. The CLI surfaces these as `atif_sayisi`, `yayin_sayisi`,
+and `hindex` — no extra call needed.
+
+Note: the UI also calls `/api/findAuthorCitationsByIdList/<quoted ids>`, but that
+endpoint returns a list of *publications* (`hits.hits[].fields.authors.authorId`),
+**not** an `{id: count}` map — do not use it for per-author citation counts.
 
 ## PDF download (two-step)
 

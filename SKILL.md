@@ -44,7 +44,7 @@ so you can report distributions and pick filter values.
   as `accessType`, `publication_year`, `documentType`, `publicationLanguage`,
   `subject`, `journalName`, `facetAuthorInstitution`).
 - **journals / authors / institutions** — same flags (no `--filter`). `authors`
-  is enriched best-effort with citation counts.
+  results include `atif_sayisi` (citation count), `yayin_sayisi`, and `hindex`.
 - **advanced** — field-scoped. `--criteria` is a JSON list of
   `{"field","term","op"}`; `op` ∈ `AND|OR|NOT` (first ignored, default AND).
   Fields: `title, abstract, year, author, orcid, issn, eissn, journal, doi,

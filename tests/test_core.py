@@ -134,6 +134,15 @@ class TestNormalize(unittest.TestCase):
         self.assertIn("id", rec)
         self.assertIn("ham", rec)
 
+    def test_author_surfaces_citation_count(self):
+        ahit = _load("author_search.json")["hits"]["hits"][0]
+        rec = core.normalize_record(ahit, "author")
+        # citation count comes straight from _source.orderCitationCount
+        self.assertEqual(rec["atif_sayisi"], ahit["_source"]["orderCitationCount"])
+        self.assertEqual(rec["baslik"], ahit["_source"]["fullName"])
+        self.assertIn("hindex", rec)
+        self.assertIn("yayin_sayisi", rec)
+
 
 class TestParseResponse(unittest.TestCase):
     def test_envelope(self):

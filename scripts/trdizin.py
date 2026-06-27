@@ -93,29 +93,6 @@ def _parse_filters(pairs):
     return filters
 
 
-from urllib.parse import quote
-
-
-def enrich_author_citations(result, _opener=None):
-    """Best-effort: add `atif_sayisi` to author records via the citation list
-    endpoint. Any failure leaves results unchanged."""
-    ids = [str(r["id"]) for r in result.get("results", []) if r.get("id")]
-    if not ids:
-        return result
-    id_list = ", ".join('"%s"' % i for i in ids)
-    url = "%s/findAuthorCitationsByIdList/%s" % (core.BASE, quote(id_list))
-    try:
-        data = http_get_json(url, _opener=_opener)
-    except RuntimeError:
-        return result
-    counts = data if isinstance(data, dict) else {}
-    for r in result.get("results", []):
-        key = str(r.get("id"))
-        if key in counts:
-            r["atif_sayisi"] = counts[key]
-    return result
-
-
 import os
 import tempfile
 
@@ -195,8 +172,6 @@ def run(argv, _opener=None):
         data = http_get_json(url, _opener=_opener)
         result = core.parse_response(data, entity, args.page, args.limit,
                                      include_references=not args.no_references)
-        if args.cmd == "authors":
-            result = enrich_author_citations(result, _opener=_opener)
         result["url"] = url
         print(json.dumps(result, ensure_ascii=False))
         return 0

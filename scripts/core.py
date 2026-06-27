@@ -188,6 +188,19 @@ def _pages(src):
 
 def normalize_record(hit, entity, include_references=True):
     src = hit.get("_source", {}) or {}
+    if entity == "author":
+        # Citation count is authoritative in _source.orderCitationCount (the
+        # field TR Dizin sorts authors by); no extra API call needed.
+        return {
+            "id": src.get("id") or hit.get("_id"),
+            "baslik": src.get("fullName") or src.get("orderTitle"),
+            "atif_sayisi": src.get("orderCitationCount"),
+            "yayin_sayisi": src.get("orderPublicationCount"),
+            "hindex": src.get("hindex"),
+            "orcid": src.get("orcid"),
+            "ham": {k: v for k, v in src.items()
+                    if isinstance(v, (str, int, float, bool))},
+        }
     if entity != "publication":
         return {
             "id": src.get("id") or hit.get("_id"),

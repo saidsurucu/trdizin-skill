@@ -78,15 +78,15 @@ class TestAdvancedCli(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
-class TestAuthorEnrich(unittest.TestCase):
-    def test_enrich_is_best_effort_on_failure(self):
-        result = {"results": [{"id": 1}, {"id": 2}]}
-
-        def boom(url, timeout):
-            raise RuntimeError("x")
-
-        out = trdizin.enrich_author_citations(result, _opener=boom)
-        self.assertEqual(out["results"], [{"id": 1}, {"id": 2}])
+class TestAuthorsCli(unittest.TestCase):
+    def test_authors_have_citation_count(self):
+        code, out = _run(["authors", "--q", "ahmet", "--limit", "3"],
+                         "author_search.json")
+        self.assertEqual(code, 0)
+        data = json.loads(out)
+        self.assertTrue(len(data["results"]) >= 1)
+        # atif_sayisi surfaced from the author record itself (no extra call)
+        self.assertIn("atif_sayisi", data["results"][0])
 
 
 if __name__ == "__main__":

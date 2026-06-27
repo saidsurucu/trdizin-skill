@@ -45,6 +45,13 @@ class TestLive(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(len(out["results"]) >= 1)
 
+    def test_authors_citation_count_live(self):
+        code, out = _run(["authors", "--q", "ahmet", "--limit", "3"])
+        self.assertEqual(code, 0)
+        self.assertTrue(len(out["results"]) >= 1)
+        # regression: atif_sayisi must be present (from the author record itself)
+        self.assertIn("atif_sayisi", out["results"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
